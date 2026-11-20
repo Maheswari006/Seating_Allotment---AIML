@@ -1,0 +1,142 @@
+
+{% extends "base.html" %}
+
+{% block header %}
+<div class="header-section text-center">
+    <h1><i class="fas fa-calendar-alt me-2"></i> Internal Exam Hall Allocation</h1>
+    <p class="lead">Using Constraint Satisfaction Problem (CSP) for Optimal Seating</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <form action="{{ url_for('index') }}" method="post" id="allocationForm">
+            <div class="row">
+                <!-- Room Input Section -->
+                <div class="col-md-6">
+                    <div class="card p-4 mb-4">
+                        <h4 class="mb-4"><i class="fas fa-door-open me-2"></i> Exam Rooms</h4>
+                        <div id="roomRows">
+                            {% if pre_rooms %}
+                                {% for room in pre_rooms %}
+                                <div class="row mb-3 g-2 room-row">
+                                    <div class="col-3">
+                                        <input type="text" name="room_block[]" class="form-control" placeholder="Block (e.g. VB)" required value="{{ room.block }}">
+                                    </div>
+                                    <div class="col-2">
+                                        <input type="text" name="room_floor[]" class="form-control" placeholder="Floor (GF)" required value="{{ room.floor }}">
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="text" name="room_name[]" class="form-control" placeholder="Room (VB001)" required value="{{ room.name }}">
+                                    </div>
+                                    <div class="col-2">
+                                        <input type="number" name="room_capacity[]" class="form-control" placeholder="Cap" required min="1" value="{{ room.capacity }}">
+                                    </div>
+                                    <div class="col-1 text-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-row" onclick="this.closest('.room-row').remove()"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="row mb-3 g-2 room-row">
+                                    <div class="col-3">
+                                        <input type="text" name="room_block[]" class="form-control" placeholder="Block (e.g. VB)" required>
+                                    </div>
+                                    <div class="col-2">
+                                        <input type="text" name="room_floor[]" class="form-control" placeholder="Floor (GF)" required>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="text" name="room_name[]" class="form-control" placeholder="Room (VB001)" required>
+                                    </div>
+                                    <div class="col-2">
+                                        <input type="number" name="room_capacity[]" class="form-control" placeholder="Cap" required min="1">
+                                    </div>
+                                    <div class="col-1 text-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-row" style="display:none;"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addRoom"><i class="fas fa-plus me-1"></i> Add Room</button>
+                    </div>
+                </div>
+
+                <!-- Department Input Section -->
+                <div class="col-md-6">
+                    <div class="card p-4 mb-4">
+                        <h4 class="mb-4"><i class="fas fa-users me-2"></i> Departments</h4>
+                        <div id="deptRows">
+                            {% if pre_depts %}
+                                {% for dept in pre_depts %}
+                                <div class="row mb-3 g-2 dept-row">
+                                    <div class="col-5">
+                                        <input type="text" name="dept_name[]" class="form-control" placeholder="Dept (e.g. CSE)" required value="{{ dept.name }}">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" name="dept_section[]" class="form-control" placeholder="Sec (A)" required value="{{ dept.section }}">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="number" name="dept_students[]" class="form-control" placeholder="Students" required min="1" value="{{ dept.students }}">
+                                    </div>
+                                    <div class="col-1 text-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-row" onclick="this.closest('.dept-row').remove()"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="row mb-3 g-2 dept-row">
+                                    <div class="col-5">
+                                        <input type="text" name="dept_name[]" class="form-control" placeholder="Dept (e.g. CSE)" required>
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" name="dept_section[]" class="form-control" placeholder="Sec (A)" required>
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="number" name="dept_students[]" class="form-control" placeholder="Students" required min="1">
+                                    </div>
+                                    <div class="col-1 text-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-row" style="display:none;"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addDept"><i class="fas fa-plus me-1"></i> Add Department</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm"><i class="fas fa-brain me-2"></i> Generate Allocation</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function addRow(containerId, rowClass) {
+        const container = document.getElementById(containerId);
+        const firstRow = container.querySelector('.' + rowClass);
+        const newRow = firstRow.cloneNode(true);
+        
+        // Clear inputs
+        newRow.querySelectorAll('input').forEach(input => input.value = '');
+        
+        // Show delete button
+        const removeBtn = newRow.querySelector('.remove-row');
+        removeBtn.style.display = 'block';
+        removeBtn.onclick = function() {
+            newRow.remove();
+        };
+        
+        container.appendChild(newRow);
+    }
+
+    document.getElementById('addRoom').onclick = () => addRow('roomRows', 'room-row');
+    document.getElementById('addDept').onclick = () => addRow('deptRows', 'dept-row');
+});
+</script>
+{% endblock %}
